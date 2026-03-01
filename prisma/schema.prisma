@@ -1,0 +1,167 @@
+generator client {
+    provider        = "prisma-client-js"
+    previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model User {
+    id            String         @id @default(cuid())
+    supabaseId    String         @unique
+    email         String         @unique
+    username      String?
+    avatarUrl     String?
+    height        Float?
+    weight        Float?
+    age           Int?
+    gender        Gender?
+    activityLevel ActivityLevel?
+    diet          DietType?
+    allergies     String[]
+    favorites     Favorite[]
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+}
+
+model Recipe {
+    id                       String                @id @default(cuid())
+    spoonacularId            Int                   @unique
+    title                    String
+    image                    String?
+    imageType                String?
+    servings                 Int?
+    readyInMinutes           Int?
+    cookingMinutes           Int?
+    preparationMinutes       Int?
+    healthScore              Float?
+    spoonacularScore         Float?
+    pricePerServing          Float?
+    sourceName               String?
+    sourceUrl                String?
+    spoonacularSourceUrl     String?
+    license                  String?
+    summary                  String?               @db.Text
+    instructions             String?               @db.Text
+    vegetarian               Boolean               @default(false)
+    vegan                    Boolean               @default(false)
+    glutenFree               Boolean               @default(false)
+    dairyFree                Boolean               @default(false)
+    veryHealthy              Boolean               @default(false)
+    cheap                    Boolean               @default(false)
+    veryPopular              Boolean               @default(false)
+    sustainable              Boolean               @default(false)
+    lowFodmap                Boolean               @default(false)
+    weightWatcherSmartPoints Int?
+    cuisines                 String[]
+    diets                    String[]
+    dishTypes                String[]
+    occasions                String[]
+    ingredients              RecipeIngredient[]
+    analyzedInstructions     AnalyzedInstruction[]
+    favorites                Favorite[]
+    lastSyncedAt             DateTime              @default(now())
+    createdAt                DateTime              @default(now())
+    updatedAt                DateTime              @updatedAt
+
+    @@index([spoonacularId])
+}
+
+model RecipeIngredient {
+    id           String   @id @default(cuid())
+    recipeId     String
+    spoonId      Int
+    name         String
+    nameClean    String?
+    original     String?
+    originalName String?
+    amount       Float
+    unit         String?
+    image        String?
+    aisle        String?
+    consistency  String?
+    meta         String[]
+    recipe       Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    @@index([recipeId])
+}
+
+model AnalyzedInstruction {
+    id       String            @id @default(cuid())
+    recipeId String
+    name     String?
+    steps    InstructionStep[]
+    recipe   Recipe            @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    @@index([recipeId])
+}
+
+model InstructionStep {
+    id            String              @id @default(cuid())
+    instructionId String
+    number        Int
+    step          String              @db.Text
+    ingredients   StepIngredient[]
+    equipment     StepEquipment[]
+    instruction   AnalyzedInstruction @relation(fields: [instructionId], references: [id], onDelete: Cascade)
+
+    @@index([instructionId])
+}
+
+model StepIngredient {
+    id      String          @id @default(cuid())
+    stepId  String
+    spoonId Int
+    name    String
+    image   String?
+    step    InstructionStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+}
+
+model StepEquipment {
+    id      String          @id @default(cuid())
+    stepId  String
+    spoonId Int
+    name    String
+    image   String?
+    step    InstructionStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+}
+
+model Favorite {
+    id        String   @id @default(cuid())
+    userId    String
+    recipeId  String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@unique([userId, recipeId])
+    @@index([userId])
+}
+
+enum Gender {
+    male
+    female
+}
+
+enum ActivityLevel {
+    low
+    light
+    moderate
+    high
+    very_high
+}
+
+enum DietType {
+    gluten_free
+    ketogenic
+    vegetarian
+    lacto_vegetarian
+    ovo_vegetarian
+    vegan
+    pescetarian
+    paleo
+    primal
+    low_fodmap
+    whole30
+}
