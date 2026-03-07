@@ -71,9 +71,7 @@ export class SpoonacularService {
           },
         }),
       );
-      return response.data.recipes.map((r: any) =>
-        this.transformRecipeDetail(r),
-      );
+      return response.data.recipes.map((r: any) => this.toCardShape(r));
     } catch (error) {
       this.handleSpoonacularError(error);
     }
@@ -81,7 +79,8 @@ export class SpoonacularService {
 
   async findByIngredients(ingredients: string, number = 12) {
     try {
-      const response = await firstValueFrom(
+      // Step 1: get list of recipes matching ingredients
+      const listResponse = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/findByIngredients`, {
           params: {
             apiKey: this.apiKey,
@@ -92,7 +91,19 @@ export class SpoonacularService {
           },
         }),
       );
-      return response.data;
+      const list: any[] = listResponse.data;
+      if (!list.length) return [];
+
+      // Step 2: bulk enrich to get full info (extendedIngredients, scores, etc.)
+      const ids = list.map((r: any) => r.id).join(',');
+      const bulkResponse = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/recipes/informationBulk`, {
+          params: { apiKey: this.apiKey, ids },
+        }),
+      );
+
+      // Step 3: transform to unified card shape
+      return bulkResponse.data.map((r: any) => this.toCardShape(r));
     } catch (error) {
       this.handleSpoonacularError(error);
     }
@@ -120,38 +131,47 @@ export class SpoonacularService {
     try {
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/complexSearch`, {
-          params: { apiKey: this.apiKey, ...params },
+          params: { apiKey: this.apiKey, addRecipeInformation: true, ...params },
         }),
       );
-      return response.data;
+      return this.transformSearchResult(response.data);
     } catch (error) {
       this.handleSpoonacularError(error);
     }
   }
 
+  // Unified card shape — dipakai oleh semua list endpoint
+  private toCardShape(r: any) {
+    return {
+      id: r.id,
+      title: r.title,
+      image: r.image ?? null,
+      readyInMinutes: r.readyInMinutes ?? null,
+      servings: r.servings ?? null,
+      healthScore: r.healthScore ?? null,
+      spoonacularScore: r.spoonacularScore ?? null,
+      cuisines: r.cuisines ?? [],
+      diets: r.diets ?? [],
+      dishTypes: r.dishTypes ?? [],
+      vegetarian: r.vegetarian ?? false,
+      vegan: r.vegan ?? false,
+      glutenFree: r.glutenFree ?? false,
+      dairyFree: r.dairyFree ?? false,
+      veryPopular: r.veryPopular ?? false,
+      ingredients: (r.extendedIngredients ?? []).map((i: any) => ({
+        id: i.id,
+        name: i.nameClean ?? i.name,
+        image: i.image
+          ? `https://spoonacular.com/cdn/ingredients_100x100/${i.image}`
+          : null,
+      })),
+    };
+  }
+
   // Transform search result
   private transformSearchResult(data: any) {
     return {
-      results: data.results.map((r: any) => ({
-        id: r.id,
-        title: r.title,
-        image: r.image,
-        imageType: r.imageType,
-        readyInMinutes: r.readyInMinutes,
-        servings: r.servings,
-        cuisines: r.cuisines ?? [],
-        diets: r.diets ?? [],
-        dishTypes: r.dishTypes ?? [],
-        vegetarian: r.vegetarian,
-        vegan: r.vegan,
-        glutenFree: r.glutenFree,
-        dairyFree: r.dairyFree,
-        veryHealthy: r.veryHealthy,
-        cheap: r.cheap,
-        veryPopular: r.veryPopular,
-        healthScore: r.healthScore,
-        spoonacularScore: r.spoonacularScore,
-      })),
+      results: data.results.map((r: any) => this.toCardShape(r)),
       totalResults: data.totalResults,
       offset: data.offset,
       number: data.number,
