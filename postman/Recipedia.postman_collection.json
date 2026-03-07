@@ -1,0 +1,311 @@
+{
+  "info": {
+    "name": "Recipedia API",
+    "description": "Recipedia backend — NestJS · base URL: {{baseUrl}}\n\nSet collection variable:\n  baseUrl = http://localhost:3001/api/v1\n\nFor authenticated requests set the Authorization header as Bearer {{token}}.\nLogin or Register first, then copy the access_token into the {{token}} variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001/api/v1" },
+    { "key": "token",   "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john\",\n  \"email\": \"john@example.com\",\n  \"password\": \"secret123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": ["const r = pm.response.json();", "if (r.data?.access_token) pm.collectionVariables.set('token', r.data.access_token);"] }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"secret123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Sync OAuth User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/sync", "host": ["{{baseUrl}}"], "path": ["auth","sync"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supabaseId\": \"<supabase-uid>\",\n  \"email\": \"john@example.com\",\n  \"username\": \"john\",\n  \"avatarUrl\": \"https://example.com/avatar.png\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Current User (me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth","me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users/profile", "host": ["{{baseUrl}}"], "path": ["users","profile"] }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/users/profile", "host": ["{{baseUrl}}"], "path": ["users","profile"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_updated\",\n  \"height\": 175,\n  \"weight\": 70,\n  \"age\": 25,\n  \"gender\": \"male\",\n  \"activityLevel\": \"moderate\",\n  \"diet\": \"vegetarian\",\n  \"allergies\": [\"gluten\", \"dairy\"]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recipes",
+      "item": [
+        {
+          "name": "Search Recipes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/recipes/search?query=pasta&cuisine=italian&diet=vegetarian&type=main+course&number=12&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","search"],
+              "query": [
+                { "key": "query",   "value": "pasta" },
+                { "key": "cuisine", "value": "italian" },
+                { "key": "diet",    "value": "vegetarian" },
+                { "key": "type",    "value": "main course" },
+                { "key": "number",  "value": "12" },
+                { "key": "offset",  "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Random Recipes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/recipes/random?number=6&tags=vegetarian",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","random"],
+              "query": [
+                { "key": "number", "value": "6" },
+                { "key": "tags",   "value": "vegetarian" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Find by Ingredients",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/recipes/find-by-ingredients?ingredients=egg,milk,butter&number=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","find-by-ingredients"],
+              "query": [
+                { "key": "ingredients", "value": "egg,milk,butter" },
+                { "key": "number",      "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recipes by Category",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/recipes/category/breakfast",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","category","breakfast"]
+            }
+          }
+        },
+        {
+          "name": "Recipe Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/recipes/716429",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","716429"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Favorites",
+      "item": [
+        {
+          "name": "Get All Favorites",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/favorites", "host": ["{{baseUrl}}"], "path": ["favorites"] }
+          }
+        },
+        {
+          "name": "Add Favorite",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/favorites/716429",
+              "host": ["{{baseUrl}}"],
+              "path": ["favorites","716429"]
+            }
+          }
+        },
+        {
+          "name": "Remove Favorite",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/favorites/716429",
+              "host": ["{{baseUrl}}"],
+              "path": ["favorites","716429"]
+            }
+          }
+        },
+        {
+          "name": "Check Is Favorited",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/favorites/check/716429",
+              "host": ["{{baseUrl}}"],
+              "path": ["favorites","check","716429"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fridge",
+      "item": [
+        {
+          "name": "Get Fridge",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/fridge", "host": ["{{baseUrl}}"], "path": ["fridge"] }
+          }
+        },
+        {
+          "name": "Save Fridge",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/fridge", "host": ["{{baseUrl}}"], "path": ["fridge"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"id\": \"milk\",    \"emoji\": \"🥛\", \"label\": \"Milk\",   \"zone\": \"door\"     },\n    { \"id\": \"egg\",     \"emoji\": \"🥚\", \"label\": \"Egg\",    \"zone\": \"door\"     },\n    { \"id\": \"chicken\", \"emoji\": \"🍗\", \"label\": \"Chicken\",\"zone\": \"interior\" },\n    { \"id\": \"beef\",    \"emoji\": \"🥩\", \"label\": \"Beef\",   \"zone\": \"freezer\"  }\n  ],\n  \"customItems\": []\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "item": [
+        {
+          "name": "Generate Recipes by Nutrients",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/ai/generate-by-nutrients", "host": ["{{baseUrl}}"], "path": ["ai","generate-by-nutrients"] }
+          }
+        },
+        {
+          "name": "Ingredient Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/ai/ingredient-recommendations", "host": ["{{baseUrl}}"], "path": ["ai","ingredient-recommendations"] }
+          }
+        },
+        {
+          "name": "Find Recipes by Description",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/ai/find-by-description?description=something spicy and quick for dinner",
+              "host": ["{{baseUrl}}"],
+              "path": ["ai","find-by-description"],
+              "query": [{ "key": "description", "value": "something spicy and quick for dinner" }]
+            }
+          }
+        },
+        {
+          "name": "Get Ingredient Emoji",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/ai/ingredient-emoji?ingredient=avocado",
+              "host": ["{{baseUrl}}"],
+              "path": ["ai","ingredient-emoji"],
+              "query": [{ "key": "ingredient", "value": "avocado" }]
+            }
+          }
+        },
+        {
+          "name": "Analyze Food Image",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/ai/analyze-image", "host": ["{{baseUrl}}"], "path": ["ai","analyze-image"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "image", "type": "file", "src": "" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

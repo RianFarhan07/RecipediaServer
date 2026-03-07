@@ -182,7 +182,23 @@ export class AiService {
   }
 
   // ============================================
-  // 4. Analyze Image
+  // 4. Ingredient Emoji
+  // ============================================
+  async getIngredientEmoji(ingredient: string): Promise<{ name: string; emoji: string }> {
+    const prompt = `
+    Give me the single most appropriate food emoji for the ingredient: "${ingredient}".
+    Return ONLY a JSON object with these exact keys:
+    - "name": the ingredient name as given
+    - "emoji": a single emoji character
+    Example: {"name": "avocado", "emoji": "🥑"}
+    Return ONLY the JSON object with no other text.
+    `;
+    const response = await this.gemini.generateText(prompt);
+    return this.gemini.parseJSON<{ name: string; emoji: string }>(response);
+  }
+
+  // ============================================
+  // 5. Analyze Image
   // ============================================
   async analyzeImage(file: Express.Multer.File) {
     if (!file) {

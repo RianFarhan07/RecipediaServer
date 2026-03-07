@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module';
 import { RecipesModule } from './modules/recipes/recipes.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { AiModule } from './modules/ai/ai.module';
+import { FridgeModule } from './modules/fridge/fridge.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AiModule } from './modules/ai/ai.module';
     RecipesModule,
     FavoritesModule,
     AiModule,
+    FridgeModule,
   ],
 })
 export class AppModule {}

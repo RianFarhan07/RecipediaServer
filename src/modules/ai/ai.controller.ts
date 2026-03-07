@@ -15,6 +15,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -48,6 +49,13 @@ export class AiController {
   @ApiOperation({ summary: 'Find recipes by natural language description' })
   findByDescription(@Query() dto: FindByDescriptionDto) {
     return this.aiService.findByDescription(dto.description);
+  }
+
+  @Get('ingredient-emoji')
+  @ApiOperation({ summary: 'Get emoji for a given ingredient name' })
+  @ApiQuery({ name: 'ingredient', required: true, type: String })
+  getIngredientEmoji(@Query('ingredient') ingredient: string) {
+    return this.aiService.getIngredientEmoji(ingredient);
   }
 
   @Post('analyze-image')

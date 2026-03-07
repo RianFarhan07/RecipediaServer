@@ -104,14 +104,29 @@ export class AuthService {
   // Sync Supabase user ke DB
   // ============================================
   async syncUser(dto: SyncUserDto) {
-    return this.prisma.db.user.upsert({
-      where: { supabaseId: dto.supabaseId },
-      update: {
-        email: dto.email,
-        username: dto.username,
-        avatarUrl: dto.avatarUrl,
+    // First try to find existing user by supabaseId OR email
+    const existingUser = await this.prisma.db.user.findFirst({
+      where: {
+        OR: [{ supabaseId: dto.supabaseId }, { email: dto.email }],
       },
-      create: {
+    });
+
+    if (existingUser) {
+      // Update the record, linking supabaseId if it was missing/different
+      return this.prisma.db.user.update({
+        where: { id: existingUser.id },
+        data: {
+          supabaseId: dto.supabaseId, // ensure supabaseId is always current
+          email: dto.email,
+          ...(dto.username && { username: dto.username }),
+          ...(dto.avatarUrl && { avatarUrl: dto.avatarUrl }),
+        },
+      });
+    }
+
+    // No existing user — safe to create
+    return this.prisma.db.user.create({
+      data: {
         supabaseId: dto.supabaseId,
         email: dto.email,
         username: dto.username,

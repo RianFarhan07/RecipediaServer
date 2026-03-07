@@ -21,6 +21,7 @@ model User {
     diet          DietType?
     allergies     String[]
     favorites     Favorite[]
+    fridge        UserFridge?
     createdAt     DateTime       @default(now())
     updatedAt     DateTime       @updatedAt
 }
@@ -125,6 +126,16 @@ model StepEquipment {
     name    String
     image   String?
     step    InstructionStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+}
+
+model UserFridge {
+    id          String   @id @default(cuid())
+    userId      String   @unique
+    items       Json     @default("[]")
+    customItems Json     @default("[]")
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 }
 
 model Favorite {

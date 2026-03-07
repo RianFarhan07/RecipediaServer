@@ -1,0 +1,285 @@
+{
+  "info": {
+    "name": "Spoonacular API",
+    "description": "Spoonacular REST API — https://api.spoonacular.com\n\nSet collection variable:\n  apiKey = <your-spoonacular-api-key>\n\nAll requests pass apiKey as a query parameter.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://api.spoonacular.com" },
+    { "key": "apiKey",  "value": "<your-api-key>" }
+  ],
+  "item": [
+    {
+      "name": "Recipes",
+      "item": [
+        {
+          "name": "Complex Search",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recipes/complexSearch?query=pasta&cuisine=italian&diet=vegetarian&type=main+course&intolerances=gluten&number=12&offset=0&addRecipeInformation=true&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","complexSearch"],
+              "query": [
+                { "key": "query",                 "value": "pasta" },
+                { "key": "cuisine",               "value": "italian" },
+                { "key": "diet",                  "value": "vegetarian" },
+                { "key": "type",                  "value": "main course" },
+                { "key": "intolerances",          "value": "gluten",  "disabled": true },
+                { "key": "number",                "value": "12" },
+                { "key": "offset",                "value": "0" },
+                { "key": "addRecipeInformation",  "value": "true" },
+                { "key": "fillIngredients",       "value": "true", "disabled": true },
+                { "key": "apiKey",                "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Random Recipes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recipes/random?number=6&tags=vegetarian&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","random"],
+              "query": [
+                { "key": "number", "value": "6" },
+                { "key": "tags",   "value": "vegetarian" },
+                { "key": "apiKey", "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Find by Ingredients",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recipes/findByIngredients?ingredients=egg,milk,butter&number=10&ranking=1&ignorePantry=true&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","findByIngredients"],
+              "query": [
+                { "key": "ingredients",  "value": "egg,milk,butter" },
+                { "key": "number",       "value": "10" },
+                { "key": "ranking",      "value": "1", "description": "1=maximize used ingredients, 2=minimize missing" },
+                { "key": "ignorePantry", "value": "true" },
+                { "key": "apiKey",       "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Recipe Information",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recipes/716429/information?includeNutrition=false&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","716429","information"],
+              "query": [
+                { "key": "includeNutrition", "value": "false" },
+                { "key": "apiKey",           "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Recipe Information Bulk",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recipes/informationBulk?ids=716429,715538&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","informationBulk"],
+              "query": [
+                { "key": "ids",    "value": "716429,715538" },
+                { "key": "apiKey", "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Analyzed Recipe Instructions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recipes/716429/analyzedInstructions?stepBreakdown=true&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","716429","analyzedInstructions"],
+              "query": [
+                { "key": "stepBreakdown", "value": "true" },
+                { "key": "apiKey",        "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Similar Recipes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recipes/716429/similar?number=5&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","716429","similar"],
+              "query": [
+                { "key": "number", "value": "5" },
+                { "key": "apiKey", "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Autocomplete Recipe Search",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recipes/autocomplete?query=past&number=5&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","autocomplete"],
+              "query": [
+                { "key": "query",  "value": "past" },
+                { "key": "number", "value": "5" },
+                { "key": "apiKey", "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ingredients",
+      "item": [
+        {
+          "name": "Search Ingredients",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/food/ingredients/search?query=avocado&number=10&metaInformation=true&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["food","ingredients","search"],
+              "query": [
+                { "key": "query",           "value": "avocado" },
+                { "key": "number",          "value": "10" },
+                { "key": "metaInformation", "value": "true" },
+                { "key": "apiKey",          "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Ingredient Information",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/food/ingredients/9266/information?amount=1&unit=piece&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["food","ingredients","9266","information"],
+              "query": [
+                { "key": "amount", "value": "1" },
+                { "key": "unit",   "value": "piece" },
+                { "key": "apiKey", "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Autocomplete Ingredient Search",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/food/ingredients/autocomplete?query=chic&number=10&metaInformation=true&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["food","ingredients","autocomplete"],
+              "query": [
+                { "key": "query",           "value": "chic" },
+                { "key": "number",          "value": "10" },
+                { "key": "metaInformation", "value": "true" },
+                { "key": "apiKey",          "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meal Planning",
+      "item": [
+        {
+          "name": "Generate Meal Plan (Day)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/mealplanner/generate?timeFrame=day&targetCalories=2000&diet=vegetarian&exclude=nuts&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["mealplanner","generate"],
+              "query": [
+                { "key": "timeFrame",      "value": "day", "description": "day or week" },
+                { "key": "targetCalories", "value": "2000" },
+                { "key": "diet",           "value": "vegetarian" },
+                { "key": "exclude",        "value": "nuts" },
+                { "key": "apiKey",         "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Generate Meal Plan (Week)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/mealplanner/generate?timeFrame=week&targetCalories=2000&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["mealplanner","generate"],
+              "query": [
+                { "key": "timeFrame",      "value": "week" },
+                { "key": "targetCalories", "value": "2000" },
+                { "key": "apiKey",         "value": "{{apiKey}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Nutrition",
+      "item": [
+        {
+          "name": "Get Recipe Nutrition Widget",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/recipes/716429/nutritionWidget.json?apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","716429","nutritionWidget.json"],
+              "query": [{ "key": "apiKey", "value": "{{apiKey}}" }]
+            }
+          }
+        },
+        {
+          "name": "Parse Ingredients (Nutrition)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "url": {
+              "raw": "{{baseUrl}}/recipes/parseIngredients?includeNutrition=true&apiKey={{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recipes","parseIngredients"],
+              "query": [
+                { "key": "includeNutrition", "value": "true" },
+                { "key": "apiKey",           "value": "{{apiKey}}" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "ingredientList", "value": "3 oz flour\n1 cup milk\n2 eggs" },
+                { "key": "servings",       "value": "2" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
