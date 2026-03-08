@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
+import { ScheduleModule } from '@nestjs/schedule';
 import { createKeyv } from '@keyv/redis';
 import { AuthModule } from './modules/auth/auth.module';
 import configuration from './config/configuration';
@@ -10,6 +11,7 @@ import { RecipesModule } from './modules/recipes/recipes.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { AiModule } from './modules/ai/ai.module';
 import { FridgeModule } from './modules/fridge/fridge.module';
+import { TrendingModule } from './modules/trending/trending.module';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { FridgeModule } from './modules/fridge/fridge.module';
         stores: [createKeyv('redis://localhost:6379')],
       }),
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -30,6 +33,7 @@ import { FridgeModule } from './modules/fridge/fridge.module';
     FavoritesModule,
     AiModule,
     FridgeModule,
+    TrendingModule,
   ],
 })
 export class AppModule {}

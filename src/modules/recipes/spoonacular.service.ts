@@ -31,6 +31,7 @@ export class SpoonacularService {
             number: params.number ?? 12,
             offset: params.offset ?? 0,
             addRecipeInformation: true,
+            fillIngredients: true,
             instructionsRequired: true,
           },
         }),
@@ -118,10 +119,31 @@ export class SpoonacularService {
             type: category,
             number,
             addRecipeInformation: true,
+            fillIngredients: true,
           },
         }),
       );
       return this.transformSearchResult(response.data);
+    } catch (error) {
+      this.handleSpoonacularError(error);
+    }
+  }
+
+  async getPopularRecipes(number = 8) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/recipes/complexSearch`, {
+          params: {
+            apiKey: this.apiKey,
+            number,
+            sort: 'popularity',
+            sortDirection: 'desc',
+            addRecipeInformation: true,
+            fillIngredients: true,
+          },
+        }),
+      );
+      return response.data.results.map((r: any) => this.toCardShape(r));
     } catch (error) {
       this.handleSpoonacularError(error);
     }

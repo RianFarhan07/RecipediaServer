@@ -138,6 +138,13 @@ model UserFridge {
     updatedAt   DateTime @updatedAt
 }
 
+model TrendingSnapshot {
+    id        String   @id @default(cuid())
+    date      DateTime @unique
+    recipes   Json
+    createdAt DateTime @default(now())
+}
+
 model Favorite {
     id        String   @id @default(cuid())
     userId    String
