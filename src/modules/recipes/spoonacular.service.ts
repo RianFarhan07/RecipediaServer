@@ -129,13 +129,14 @@ export class SpoonacularService {
     }
   }
 
-  async getPopularRecipes(number = 8) {
+  async getPopularRecipes(number = 8, offset = 0) {
     try {
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/complexSearch`, {
           params: {
             apiKey: this.apiKey,
             number,
+            offset,
             sort: 'popularity',
             sortDirection: 'desc',
             addRecipeInformation: true,
@@ -153,7 +154,11 @@ export class SpoonacularService {
     try {
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/complexSearch`, {
-          params: { apiKey: this.apiKey, addRecipeInformation: true, ...params },
+          params: {
+            apiKey: this.apiKey,
+            addRecipeInformation: true,
+            ...params,
+          },
         }),
       );
       return this.transformSearchResult(response.data);
