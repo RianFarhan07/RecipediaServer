@@ -16,4 +16,4 @@ RUN pnpm run build
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "pnpm run migrate:deploy && pnpm run start:prod"]
+CMD ["sh", "-c", "cd /app && pnpm run migrate:deploy && pnpm run start:prod"]
