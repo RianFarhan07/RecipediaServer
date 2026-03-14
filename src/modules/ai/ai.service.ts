@@ -198,7 +198,89 @@ export class AiService {
   }
 
   // ============================================
-  // 5. Analyze Image
+  // 5. Identify Dish from Image (Snap & Cook)
+  // ============================================
+  async identifyDish(file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No image file provided');
+    }
+
+    const imageBase64 = file.buffer.toString('base64');
+    const mimeType = file.mimetype;
+
+    const prompt = `
+    Look at this food image and identify the dish or meal you see.
+    Focus on the final cooked dish, not the raw ingredients.
+
+    Return ONLY a JSON object with these exact keys:
+    - "dishName": the name of the dish (can be in original language, e.g. "Nasi Goreng", "Ramen", "Pho Bo")
+    - "englishQuery": the best English search term for finding this dish's recipe on a recipe website (e.g. "Indonesian fried rice", "Japanese ramen noodles", "Vietnamese beef pho"). Always in English.
+    - "confidence": "high", "medium", or "low"
+    - "description": one short sentence describing the dish in English
+
+    Example: {"dishName": "Nasi Goreng", "englishQuery": "Indonesian fried rice", "confidence": "high", "description": "Indonesian fried rice seasoned with sweet soy sauce, shrimp paste, and spices."}
+
+    If you cannot identify any food dish, return {"dishName": null, "englishQuery": null, "confidence": "low", "description": null}
+    Return ONLY the JSON object with no other text.
+    `;
+
+    const response = await this.gemini.generateWithImage(prompt, imageBase64, mimeType);
+
+    let result: { dishName: string | null; englishQuery: string | null; confidence: string; description: string | null };
+    try {
+      result = this.gemini.parseJSON<typeof result>(response);
+    } catch {
+      result = { dishName: null, englishQuery: null, confidence: 'low', description: null };
+    }
+
+    if (!result.dishName) {
+      return {
+        dishName: null,
+        englishQuery: null,
+        confidence: 'low',
+        description: null,
+        recipes: [],
+        message: 'Could not identify a dish in this image. Try with a clearer photo.',
+      };
+    }
+
+    // Use englishQuery for Spoonacular search (better results for non-English dish names)
+    const searchQuery = result.englishQuery ?? result.dishName;
+    let searchResult = await this.spoonacular.searchRecipes({
+      query: searchQuery,
+      number: 12,
+    });
+
+    // Fallback 1: strip nationality/origin prefix (e.g. "Indonesian fried rice" → "fried rice")
+    if (!searchResult?.results?.length && result.englishQuery) {
+      const words = result.englishQuery.split(' ');
+      if (words.length > 2) {
+        const stripped = words.slice(1).join(' ');
+        searchResult = await this.spoonacular.searchRecipes({ query: stripped, number: 12 });
+      }
+    }
+
+    // Fallback 2: try just the core term (last 2 words)
+    if (!searchResult?.results?.length && result.englishQuery) {
+      const words = result.englishQuery.split(' ');
+      if (words.length > 2) {
+        const core = words.slice(-2).join(' ');
+        searchResult = await this.spoonacular.searchRecipes({ query: core, number: 12 });
+      }
+    }
+
+    return {
+      dishName: result.dishName,
+      englishQuery: result.englishQuery,
+      confidence: result.confidence,
+      description: result.description,
+      recipes: searchResult?.results ?? [],
+      message: `Identified: ${result.dishName}`,
+    };
+  }
+
+  // ============================================
+  // 6. Analyze Image
   // ============================================
   async analyzeImage(file: Express.Multer.File) {
     if (!file) {

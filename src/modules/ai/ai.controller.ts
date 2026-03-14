@@ -58,6 +58,34 @@ export class AiController {
     return this.aiService.getIngredientEmoji(ingredient);
   }
 
+  @Post('identify-dish')
+  @ApiOperation({ summary: 'Identify dish from food image and find recipes' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'), false);
+        }
+      },
+    }),
+  )
+  identifyDish(@UploadedFile() file: Express.Multer.File) {
+    return this.aiService.identifyDish(file);
+  }
+
   @Post('analyze-image')
   @ApiOperation({ summary: 'Analyze food image to detect ingredients' })
   @ApiConsumes('multipart/form-data')
