@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
+    "module": "commonjs", // ← ganti dari nodenext
+    "moduleResolution": "node", // ← ganti dari nodenext
+    // hapus resolvePackageJsonExports
     "esModuleInterop": true,
     "isolatedModules": true,
     "declaration": true,
