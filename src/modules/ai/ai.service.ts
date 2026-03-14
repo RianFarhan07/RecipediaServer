@@ -43,9 +43,12 @@ export class AiService {
 
     const { dailyCalories, carbsGrams, proteinGrams, fatGrams } = nutritionData;
 
-    // Kalkulasi per meal (3x makan sehari)
-    const minCalories = Math.round((dailyCalories * 0.9) / 3);
-    const maxCalories = Math.round((dailyCalories * 1.1) / 3);
+    // Per meal target (3 meals/day) — use wide calorie window only.
+    // Combining calories + carbs + protein + fat simultaneously causes 0 results on Spoonacular.
+    const minCalories = Math.round((dailyCalories * 0.7) / 3);
+    const maxCalories = Math.round((dailyCalories * 1.3) / 3);
+
+    // Keep macro data for response but don't use as Spoonacular filters
     const minCarbs = Math.round((carbsGrams * 0.8) / 3);
     const maxCarbs = Math.round((carbsGrams * 1.2) / 3);
     const minProtein = Math.round((proteinGrams * 0.8) / 3);
@@ -53,20 +56,20 @@ export class AiService {
     const minFat = Math.round((fatGrams * 0.8) / 3);
     const maxFat = Math.round((fatGrams * 1.2) / 3);
 
-    const recipes = await this.spoonacular.searchByNutrients({
+    const searchParams: Record<string, any> = {
       minCalories,
       maxCalories,
-      minCarbs,
-      maxCarbs,
-      minProtein,
-      maxProtein,
-      minFat,
-      maxFat,
       number: 6,
-      diet: diet ?? '',
-      intolerances: allergiesStr,
       addRecipeInformation: true,
-    });
+      fillIngredients: true,
+    };
+    if (diet) searchParams.diet = diet;
+    if (allergiesStr) searchParams.intolerances = allergiesStr;
+
+    const searchResult = (await this.spoonacular.searchByNutrients(
+      searchParams,
+    )) as { results: unknown[] } | undefined;
+    const recipes: unknown[] = searchResult?.results ?? [];
 
     return {
       nutritionInfo: {
