@@ -22,6 +22,7 @@ model User {
     allergies     String[]
     favorites     Favorite[]
     fridge        UserFridge?
+    mealPlanEntries MealPlanEntry[]
     createdAt     DateTime       @default(now())
     updatedAt     DateTime       @updatedAt
 }
@@ -155,6 +156,33 @@ model Favorite {
 
     @@unique([userId, recipeId])
     @@index([userId])
+}
+
+model MealPlanEntry {
+    id             String   @id @default(cuid())
+    userId         String
+    date           DateTime // stored as UTC midnight: "2026-03-15T00:00:00.000Z"
+    mealType       MealSlot
+    spoonacularId  Int
+    recipeTitle    String
+    recipeImage    String?
+    readyInMinutes Int?
+    servings       Int?
+    note           String?
+    makeDouble     Boolean  @default(false)
+    position       Int      @default(0)
+    user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+
+    @@index([userId, date])
+    @@index([userId])
+}
+
+enum MealSlot {
+    breakfast
+    lunch
+    dinner
 }
 
 enum Gender {

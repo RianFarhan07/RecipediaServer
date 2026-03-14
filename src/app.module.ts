@@ -12,6 +12,7 @@ import { FavoritesModule } from './modules/favorites/favorites.module';
 import { AiModule } from './modules/ai/ai.module';
 import { FridgeModule } from './modules/fridge/fridge.module';
 import { TrendingModule } from './modules/trending/trending.module';
+import { MealPlanModule } from './modules/meal-plan/meal-plan.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { TrendingModule } from './modules/trending/trending.module';
     AiModule,
     FridgeModule,
     TrendingModule,
+    MealPlanModule,
   ],
 })
 export class AppModule {}
