@@ -69,4 +69,27 @@ export class MealPlanController {
     if (!user) throw new NotFoundException('User not found');
     return this.mealPlanService.deleteEntry(user.id, id);
   }
+
+  @Get('shopping-list')
+  @ApiOperation({ summary: 'Get aggregated ingredients shopping list for a date range' })
+  @ApiQuery({ name: 'startDate', example: '2026-03-01' })
+  @ApiQuery({ name: 'endDate', example: '2026-03-07' })
+  getShoppingList(
+    @CurrentUser() user: any,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    if (!user) throw new NotFoundException('User not found');
+    return this.mealPlanService.getShoppingList(user.id, startDate, endDate);
+  }
+
+  @Post('copy-last-week')
+  @ApiOperation({ summary: 'Copy last week meal plan entries to target week' })
+  copyLastWeek(
+    @CurrentUser() user: any,
+    @Body() body: { targetWeekStart: string },
+  ) {
+    if (!user) throw new NotFoundException('User not found');
+    return this.mealPlanService.copyLastWeek(user.id, body.targetWeekStart);
+  }
 }
