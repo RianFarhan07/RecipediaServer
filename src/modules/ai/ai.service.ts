@@ -59,7 +59,7 @@ export class AiService {
     const searchParams: Record<string, any> = {
       minCalories,
       maxCalories,
-      number: 6,
+      number: 9,
       addRecipeInformation: true,
       fillIngredients: true,
     };

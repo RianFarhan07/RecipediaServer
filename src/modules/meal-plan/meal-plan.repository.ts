@@ -12,6 +12,11 @@ export class MealPlanRepository {
         userId,
         date: { gte: startDate, lte: endDate },
       },
+      include: {
+        recipe: {
+          select: { id: true, spoonacularId: true, calories: true, protein: true, fat: true, carbs: true },
+        },
+      },
       orderBy: [{ date: 'asc' }, { mealType: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }],
     });
   }
@@ -30,6 +35,7 @@ export class MealPlanRepository {
       recipeImage?: string;
       readyInMinutes?: number;
       servings?: number;
+      recipeId?: string;
     },
   ) {
     return this.prisma.db.mealPlanEntry.create({

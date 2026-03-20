@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { SearchRecipesDto } from './dto/search-recipes.dto';
+import { extractNutritionFromSummary } from './nutrition.utils';
 
 @Injectable()
 export class SpoonacularService {
@@ -31,6 +32,7 @@ export class SpoonacularService {
             number: params.number ?? 12,
             offset: params.offset ?? 0,
             addRecipeInformation: true,
+            addRecipeNutrition: true,
             fillIngredients: true,
             instructionsRequired: true,
           },
@@ -69,6 +71,7 @@ export class SpoonacularService {
             apiKey: this.apiKey,
             number,
             tags,
+            includeNutrition: true,
           },
         }),
       );
@@ -99,7 +102,7 @@ export class SpoonacularService {
       const ids = list.map((r: any) => r.id).join(',');
       const bulkResponse = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/informationBulk`, {
-          params: { apiKey: this.apiKey, ids },
+          params: { apiKey: this.apiKey, ids, includeNutrition: true },
         }),
       );
 
@@ -119,6 +122,7 @@ export class SpoonacularService {
             type: category,
             number,
             addRecipeInformation: true,
+            addRecipeNutrition: true,
             fillIngredients: true,
           },
         }),
@@ -140,6 +144,7 @@ export class SpoonacularService {
             sort: 'popularity',
             sortDirection: 'desc',
             addRecipeInformation: true,
+            addRecipeNutrition: true,
             fillIngredients: true,
           },
         }),
@@ -169,12 +174,29 @@ export class SpoonacularService {
 
   // Unified card shape — dipakai oleh semua list endpoint
   private toCardShape(r: any) {
+    // Try structured nutrition data first (available when addRecipeNutrition: true),
+    // then fall back to parsing the HTML summary string.
+    const raw = r as {
+      nutrition?: { nutrients?: Array<{ name: string; amount: number }> };
+      summary?: string | null;
+    };
+    const nutrients = raw.nutrition?.nutrients ?? [];
+    const fromNutrients = (name: string): number | null => {
+      const n = nutrients.find((x) => x.name === name);
+      return n ? Math.round(n.amount) : null;
+    };
+    const fromSummary = extractNutritionFromSummary(raw.summary);
+
     return {
       id: r.id,
       title: r.title,
       image: r.image ?? null,
       readyInMinutes: r.readyInMinutes ?? null,
       servings: r.servings ?? null,
+      calories: fromNutrients('Calories') ?? fromSummary.calories,
+      protein: fromNutrients('Protein') ?? fromSummary.protein,
+      fat: fromNutrients('Fat') ?? fromSummary.fat,
+      carbs: fromNutrients('Carbohydrates') ?? fromSummary.carbs,
       healthScore: r.healthScore ?? null,
       spoonacularScore: r.spoonacularScore ?? null,
       cuisines: r.cuisines ?? [],

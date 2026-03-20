@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { SpoonacularService } from './spoonacular.service';
 import { RecipesRepository } from './recipes.repository';
 import { SearchRecipesDto } from './dto/search-recipes.dto';
+import { extractNutritionFromSummary } from './nutrition.utils';
 
 @Injectable()
 export class RecipesService {
@@ -43,9 +44,30 @@ export class RecipesService {
     // 3. Tidak ada / expired → hit Spoonacular
     const fresh = await this.spoonacular.getRecipeDetail(spoonacularId);
 
-    // 4. Simpan/update ke DB
-    const saved = await this.repository.upsert(fresh);
+    // 4. Extract nutrition from summary before saving
+    const nutrition = extractNutritionFromSummary(
+      (fresh as any).summary as string | null | undefined,
+    );
+    const freshWithNutrition = { ...fresh, ...nutrition };
+
+    // 5. Simpan/update ke DB
+    const saved = await this.repository.upsert(freshWithNutrition);
 
     return { ...saved, source: 'spoonacular' };
+  }
+
+  /** Upsert minimal recipe for meal-plan linking */
+  async upsertBasic(data: {
+    spoonacularId: number;
+    title: string;
+    image?: string | null;
+    readyInMinutes?: number | null;
+    servings?: number | null;
+    calories?: number | null;
+    protein?: number | null;
+    fat?: number | null;
+    carbs?: number | null;
+  }) {
+    return this.repository.upsertBasic(data);
   }
 }

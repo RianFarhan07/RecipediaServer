@@ -56,6 +56,10 @@ model Recipe {
     sustainable              Boolean               @default(false)
     lowFodmap                Boolean               @default(false)
     weightWatcherSmartPoints Int?
+    calories                 Int?
+    protein                  Int?
+    fat                      Int?
+    carbs                    Int?
     cuisines                 String[]
     diets                    String[]
     dishTypes                String[]
@@ -63,6 +67,7 @@ model Recipe {
     ingredients              RecipeIngredient[]
     analyzedInstructions     AnalyzedInstruction[]
     favorites                Favorite[]
+    mealPlanEntries          MealPlanEntry[]
     lastSyncedAt             DateTime              @default(now())
     createdAt                DateTime              @default(now())
     updatedAt                DateTime              @updatedAt
@@ -168,6 +173,8 @@ model MealPlanEntry {
     recipeImage    String?
     readyInMinutes Int?
     servings       Int?
+    recipeId       String?
+    recipe         Recipe?  @relation(fields: [recipeId], references: [id])
     note           String?
     makeDouble     Boolean  @default(false)
     position       Int      @default(0)

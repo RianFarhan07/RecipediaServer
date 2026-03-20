@@ -21,6 +21,20 @@ export class MealPlanService {
 
   async addEntry(userId: string, dto: CreateMealPlanEntryDto) {
     const date = new Date(dto.date + 'T00:00:00.000Z');
+
+    // Upsert Recipe with nutrition data, then link from entry
+    const recipe = await this.recipesService.upsertBasic({
+      spoonacularId: dto.spoonacularId,
+      title: dto.recipeTitle,
+      image: dto.recipeImage,
+      readyInMinutes: dto.readyInMinutes,
+      servings: dto.servings,
+      calories: dto.calories,
+      protein: dto.protein,
+      fat: dto.fat,
+      carbs: dto.carbs,
+    });
+
     return this.repo.create(userId, {
       date,
       mealType: dto.mealType as MealSlot,
@@ -29,6 +43,7 @@ export class MealPlanService {
       recipeImage: dto.recipeImage,
       readyInMinutes: dto.readyInMinutes,
       servings: dto.servings,
+      recipeId: recipe.id,
     });
   }
 
@@ -153,6 +168,7 @@ export class MealPlanService {
         recipeImage: entry.recipeImage ?? undefined,
         readyInMinutes: entry.readyInMinutes ?? undefined,
         servings: entry.servings ?? undefined,
+        recipeId: entry.recipeId ?? undefined,
       });
       copied++;
     }

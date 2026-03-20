@@ -38,4 +38,24 @@ export class CreateMealPlanEntryDto {
   @IsOptional()
   @IsInt()
   servings?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  calories?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  protein?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  fat?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  carbs?: number;
 }
