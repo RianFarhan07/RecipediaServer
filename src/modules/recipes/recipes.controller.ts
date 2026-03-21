@@ -5,6 +5,7 @@ import {
   Query,
   ParseIntPipe,
   UseGuards,
+  ParseFloatPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -54,6 +55,21 @@ export class RecipesController {
   @ApiParam({ name: 'category', type: String })
   getByCategory(@Param('category') category: string) {
     return this.recipesService.getByCategory(category);
+  }
+
+  @Get('meal-suggestions')
+  @ApiOperation({ summary: 'Get personalized meal suggestions by calorie range' })
+  @ApiQuery({ name: 'mealType', required: true })
+  @ApiQuery({ name: 'minCalories', required: false, type: Number })
+  @ApiQuery({ name: 'maxCalories', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  getMealSuggestions(
+    @Query('mealType') mealType: string,
+    @Query('minCalories', new ParseFloatPipe({ optional: true })) minCalories?: number,
+    @Query('maxCalories', new ParseFloatPipe({ optional: true })) maxCalories?: number,
+    @Query('offset', new ParseFloatPipe({ optional: true })) offset?: number,
+  ) {
+    return this.recipesService.getMealSuggestions({ mealType, minCalories, maxCalories, offset });
   }
 
   @Get(':id')

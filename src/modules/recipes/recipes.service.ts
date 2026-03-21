@@ -56,6 +56,30 @@ export class RecipesService {
     return { ...saved, source: 'spoonacular' };
   }
 
+  /** Personalized meal suggestions filtered by calorie range */
+  async getMealSuggestions(params: {
+    mealType: string;
+    minCalories?: number;
+    maxCalories?: number;
+    offset?: number;
+  }) {
+    const mealTypeMap: Record<string, string> = {
+      breakfast: 'breakfast',
+      lunch: 'main course,salad,soup',
+      dinner: 'main course',
+    };
+    return this.spoonacular.searchByNutrients({
+      type: mealTypeMap[params.mealType] ?? 'main course',
+      minCalories: params.minCalories,
+      maxCalories: params.maxCalories,
+      number: 6,
+      offset: params.offset ?? 0,
+      sort: 'random',
+      addRecipeNutrition: true,
+      fillIngredients: false,
+    });
+  }
+
   /** Upsert minimal recipe for meal-plan linking */
   async upsertBasic(data: {
     spoonacularId: number;
