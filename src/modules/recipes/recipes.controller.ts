@@ -51,25 +51,40 @@ export class RecipesController {
   }
 
   @Get('category/:category')
-  @ApiOperation({ summary: 'Get recipes by category' })
+  @ApiOperation({ summary: 'Get recipes by category (dish type)' })
   @ApiParam({ name: 'category', type: String })
-  getByCategory(@Param('category') category: string) {
-    return this.recipesService.getByCategory(category);
+  @ApiQuery({ name: 'number', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  getByCategory(
+    @Param('category') category: string,
+    @Query('number', new ParseFloatPipe({ optional: true })) number?: number,
+    @Query('offset', new ParseFloatPipe({ optional: true })) offset?: number,
+  ) {
+    return this.recipesService.getByCategory(category, number, offset);
   }
 
   @Get('meal-suggestions')
-  @ApiOperation({ summary: 'Get personalized meal suggestions by calorie range' })
+  @ApiOperation({
+    summary: 'Get personalized meal suggestions by calorie range',
+  })
   @ApiQuery({ name: 'mealType', required: true })
   @ApiQuery({ name: 'minCalories', required: false, type: Number })
   @ApiQuery({ name: 'maxCalories', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   getMealSuggestions(
     @Query('mealType') mealType: string,
-    @Query('minCalories', new ParseFloatPipe({ optional: true })) minCalories?: number,
-    @Query('maxCalories', new ParseFloatPipe({ optional: true })) maxCalories?: number,
+    @Query('minCalories', new ParseFloatPipe({ optional: true }))
+    minCalories?: number,
+    @Query('maxCalories', new ParseFloatPipe({ optional: true }))
+    maxCalories?: number,
     @Query('offset', new ParseFloatPipe({ optional: true })) offset?: number,
   ) {
-    return this.recipesService.getMealSuggestions({ mealType, minCalories, maxCalories, offset });
+    return this.recipesService.getMealSuggestions({
+      mealType,
+      minCalories,
+      maxCalories,
+      offset,
+    });
   }
 
   @Get(':id')

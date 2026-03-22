@@ -113,7 +113,7 @@ export class SpoonacularService {
     }
   }
 
-  async getByCategory(category: string, number = 12) {
+  async getByCategory(category: string, number = 12, offset = 0) {
     try {
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/complexSearch`, {
@@ -121,6 +121,7 @@ export class SpoonacularService {
             apiKey: this.apiKey,
             type: category,
             number,
+            offset,
             addRecipeInformation: true,
             addRecipeNutrition: true,
             fillIngredients: true,

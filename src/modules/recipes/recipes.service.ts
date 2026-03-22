@@ -27,8 +27,8 @@ export class RecipesService {
   }
 
   // By category — selalu dari Spoonacular
-  async getByCategory(category: string, number = 12) {
-    return this.spoonacular.getByCategory(category, number);
+  async getByCategory(category: string, number = 12, offset = 0) {
+    return this.spoonacular.getByCategory(category, number, offset);
   }
 
   // Detail — DB first, fallback Spoonacular (OPSI A)
