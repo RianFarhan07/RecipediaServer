@@ -113,22 +113,75 @@ export class SpoonacularService {
     }
   }
 
+  private readonly VALID_DISH_TYPES = new Set<string>([
+    'main course',
+    'side dish',
+    'dessert',
+    'appetizer',
+    'salad',
+    'bread',
+    'breakfast',
+    'soup',
+    'beverage',
+    'sauce',
+    'marinade',
+    'fingerfood',
+    'snack',
+    'drink',
+  ]);
+
+  // Mapping kategori custom → param Spoonacular yang tepat
+  private readonly CATEGORY_PARAM_MAP: Record<string, Record<string, string>> =
+    {
+      seafood: { query: 'seafood' },
+      pasta: { query: 'pasta' },
+      noodles: { query: 'noodles' },
+      rice: { query: 'rice dish' },
+      grill: { query: 'grilled' },
+      vegetarian: { query: 'vegetarian', diet: 'vegetarian' },
+      vegan: { query: 'vegan', diet: 'vegan' },
+      baking: { query: 'baking' },
+      'stir fry': { query: 'stir fry' },
+      sandwich: { query: 'sandwich' },
+      smoothie: { query: 'smoothie' },
+      wrap: { query: 'wrap' },
+    };
+
   async getByCategory(category: string, number = 12, offset = 0) {
     try {
+      const lower = category.toLowerCase();
+      const isValidType = this.VALID_DISH_TYPES.has(lower);
+
+      const baseParams: Record<string, string | number | boolean> = {
+        apiKey: this.apiKey,
+        number,
+        offset,
+        addRecipeInformation: true,
+        addRecipeNutrition: true,
+        fillIngredients: true,
+        sort: 'popularity',
+      };
+
+      if (isValidType) {
+        // Valid dish type → pakai type param langsung
+        baseParams['type'] = category;
+      } else if (this.CATEGORY_PARAM_MAP[lower]) {
+        // Custom mapping → merge param yang sesuai
+        const customParams = this.CATEGORY_PARAM_MAP[lower];
+        Object.assign(baseParams, customParams);
+      } else {
+        // Fallback → query biasa
+        baseParams['query'] = category;
+      }
+
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/complexSearch`, {
-          params: {
-            apiKey: this.apiKey,
-            type: category,
-            number,
-            offset,
-            addRecipeInformation: true,
-            addRecipeNutrition: true,
-            fillIngredients: true,
-          },
+          params: baseParams,
         }),
       );
-      return this.transformSearchResult(response.data);
+      return this.transformSearchResult(
+        response.data as Record<string, unknown>,
+      );
     } catch (error) {
       this.handleSpoonacularError(error);
     }
