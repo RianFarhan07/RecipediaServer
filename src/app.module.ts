@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
 import { createKeyv } from '@keyv/redis';
@@ -22,9 +22,10 @@ import { MealPlanModule } from './modules/meal-plan/meal-plan.module';
     }),
     CacheModule.registerAsync({
       isGlobal: true,
-      useFactory: () => ({
-        stores: [createKeyv('redis://localhost:6379')],
+      useFactory: (config: ConfigService) => ({
+        stores: [createKeyv(config.get<string>('redis.url') ?? 'redis://localhost:6379')],
       }),
+      inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),
     PrismaModule,
