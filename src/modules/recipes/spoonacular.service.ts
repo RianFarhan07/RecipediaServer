@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
@@ -7,23 +7,112 @@ import { extractNutritionFromSummary } from './nutrition.utils';
 
 @Injectable()
 export class SpoonacularService {
+  private readonly logger = new Logger(SpoonacularService.name);
   private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private readonly apiKeys: string[];
+  private currentKeyIndex = 0;
+
+  // Track keys exhausted today — reset automatically at midnight
+  private exhaustedIndices = new Set<number>();
+  private exhaustedDate = '';
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
     this.baseUrl = this.configService.get<string>('spoonacular.baseUrl') ?? '';
-    this.apiKey = this.configService.get<string>('spoonacular.apiKey') ?? '';
+    this.apiKeys = this.configService.get<string[]>('spoonacular.apiKeys') ?? [];
+    if (this.apiKeys.length === 0) {
+      const single = this.configService.get<string>('spoonacular.apiKey') ?? '';
+      if (single) this.apiKeys.push(single);
+    }
+    this.logger.log(`Loaded ${this.apiKeys.length} Spoonacular API key(s)`);
+  }
+
+  private get apiKey(): string {
+    return this.apiKeys[this.currentKeyIndex] ?? '';
+  }
+
+  /** Reset exhausted-key tracking if the date has rolled over. */
+  private checkDailyReset() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (this.exhaustedDate !== today) {
+      this.exhaustedIndices.clear();
+      this.exhaustedDate = today;
+      if (this.exhaustedIndices.size === 0 && this.exhaustedDate) {
+        this.logger.log('New day — Spoonacular quota counters reset');
+      }
+    }
+  }
+
+  /**
+   * Mark current key as exhausted and rotate to the next fresh key.
+   * Returns false if ALL keys are exhausted for today.
+   */
+  private rotateToFreshKey(): boolean {
+    this.checkDailyReset();
+    this.exhaustedIndices.add(this.currentKeyIndex);
+
+    for (let i = 1; i <= this.apiKeys.length; i++) {
+      const candidate = (this.currentKeyIndex + i) % this.apiKeys.length;
+      if (!this.exhaustedIndices.has(candidate)) {
+        this.logger.warn(
+          `Spoonacular key #${this.currentKeyIndex + 1} quota exceeded — rotating to key #${candidate + 1}`,
+        );
+        this.currentKeyIndex = candidate;
+        return true;
+      }
+    }
+
+    this.logger.error(
+      `All ${this.apiKeys.length} Spoonacular key(s) quota exceeded for today`,
+    );
+    return false;
+  }
+
+  private async callWithKeyRotation<T>(
+    fn: (apiKey: string) => Promise<T>,
+  ): Promise<T> {
+    this.checkDailyReset();
+
+    // If every key is already exhausted, fail fast — no point retrying
+    if (this.exhaustedIndices.size >= this.apiKeys.length) {
+      this.handleSpoonacularError({ status: 402 });
+    }
+
+    let lastError: unknown;
+
+    // Try each fresh key at most once
+    for (let attempt = 0; attempt < this.apiKeys.length; attempt++) {
+      try {
+        return await fn(this.apiKey);
+      } catch (error: unknown) {
+        lastError = error;
+        const err = error as Record<string, unknown>;
+        const response = err?.['response'] as
+          | Record<string, unknown>
+          | undefined;
+        const status = (response?.['status'] ?? err?.['status']) as
+          | number
+          | undefined;
+        if (status === 402 || status === 429) {
+          if (!this.rotateToFreshKey()) break; // all keys exhausted
+          continue;
+        }
+        break; // non-quota error — stop immediately
+      }
+    }
+
+    this.handleSpoonacularError(lastError);
+    throw lastError; // unreachable — handleSpoonacularError always throws
   }
 
   async searchRecipes(params: SearchRecipesDto) {
-    try {
+    return this.callWithKeyRotation(async (apiKey) => {
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/complexSearch`, {
           params: {
-            apiKey: this.apiKey,
+            apiKey,
             query: params.query,
             cuisine: params.cuisine,
             diet: params.diet,
@@ -39,55 +128,43 @@ export class SpoonacularService {
         }),
       );
       return this.transformSearchResult(response.data);
-    } catch (error) {
-      this.handleSpoonacularError(error);
-    }
+    });
   }
 
   async getRecipeDetail(spoonacularId: number) {
-    try {
+    return this.callWithKeyRotation(async (apiKey) => {
       const response = await firstValueFrom(
         this.httpService.get(
           `${this.baseUrl}/recipes/${spoonacularId}/information`,
-          {
-            params: {
-              apiKey: this.apiKey,
-              includeNutrition: false,
-            },
-          },
+          { params: { apiKey, includeNutrition: false } },
         ),
       );
       return this.transformRecipeDetail(response.data);
-    } catch (error) {
-      this.handleSpoonacularError(error);
-    }
+    });
   }
 
-  async getRandomRecipes(number = 12, tags?: string) {
-    try {
+  async getRandomRecipes(number = 12, tags?: string): Promise<unknown[]> {
+    return this.callWithKeyRotation(async (apiKey) => {
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/random`, {
-          params: {
-            apiKey: this.apiKey,
-            number,
-            tags,
-            includeNutrition: true,
-          },
+          params: { apiKey, number, tags, includeNutrition: true },
         }),
       );
-      return response.data.recipes.map((r: any) => this.toCardShape(r));
-    } catch (error) {
-      this.handleSpoonacularError(error);
-    }
+      const data = response.data as { recipes: unknown[] };
+      return data.recipes.map((r) => this.toCardShape(r));
+    });
   }
 
-  async findByIngredients(ingredients: string, number = 12) {
-    try {
+  async findByIngredients(
+    ingredients: string,
+    number = 12,
+  ): Promise<unknown[]> {
+    return this.callWithKeyRotation(async (apiKey) => {
       // Step 1: get list of recipes matching ingredients
       const listResponse = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/findByIngredients`, {
           params: {
-            apiKey: this.apiKey,
+            apiKey,
             ingredients,
             number,
             ranking: 1,
@@ -95,22 +172,20 @@ export class SpoonacularService {
           },
         }),
       );
-      const list: any[] = listResponse.data;
+      const list = listResponse.data as unknown[];
       if (!list.length) return [];
 
-      // Step 2: bulk enrich to get full info (extendedIngredients, scores, etc.)
-      const ids = list.map((r: any) => r.id).join(',');
+      // Step 2: bulk enrich to get full info
+      const ids = list.map((r) => (r as { id: number }).id).join(',');
       const bulkResponse = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/informationBulk`, {
-          params: { apiKey: this.apiKey, ids, includeNutrition: true },
+          params: { apiKey, ids, includeNutrition: true },
         }),
       );
 
       // Step 3: transform to unified card shape
-      return bulkResponse.data.map((r: any) => this.toCardShape(r));
-    } catch (error) {
-      this.handleSpoonacularError(error);
-    }
+      return (bulkResponse.data as unknown[]).map((r) => this.toCardShape(r));
+    });
   }
 
   private readonly VALID_DISH_TYPES = new Set<string>([
@@ -148,12 +223,12 @@ export class SpoonacularService {
     };
 
   async getByCategory(category: string, number = 12, offset = 0) {
-    try {
+    return this.callWithKeyRotation(async (apiKey) => {
       const lower = category.toLowerCase();
       const isValidType = this.VALID_DISH_TYPES.has(lower);
 
       const baseParams: Record<string, string | number | boolean> = {
-        apiKey: this.apiKey,
+        apiKey,
         number,
         offset,
         addRecipeInformation: true,
@@ -163,14 +238,10 @@ export class SpoonacularService {
       };
 
       if (isValidType) {
-        // Valid dish type → pakai type param langsung
         baseParams['type'] = category;
       } else if (this.CATEGORY_PARAM_MAP[lower]) {
-        // Custom mapping → merge param yang sesuai
-        const customParams = this.CATEGORY_PARAM_MAP[lower];
-        Object.assign(baseParams, customParams);
+        Object.assign(baseParams, this.CATEGORY_PARAM_MAP[lower]);
       } else {
-        // Fallback → query biasa
         baseParams['query'] = category;
       }
 
@@ -182,17 +253,15 @@ export class SpoonacularService {
       return this.transformSearchResult(
         response.data as Record<string, unknown>,
       );
-    } catch (error) {
-      this.handleSpoonacularError(error);
-    }
+    });
   }
 
-  async getPopularRecipes(number = 8, offset = 0) {
-    try {
+  async getPopularRecipes(number = 8, offset = 0): Promise<unknown[]> {
+    return this.callWithKeyRotation(async (apiKey) => {
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/complexSearch`, {
           params: {
-            apiKey: this.apiKey,
+            apiKey,
             number,
             offset,
             sort: 'popularity',
@@ -203,27 +272,21 @@ export class SpoonacularService {
           },
         }),
       );
-      return response.data.results.map((r: any) => this.toCardShape(r));
-    } catch (error) {
-      this.handleSpoonacularError(error);
-    }
+      return (response.data as { results: unknown[] }).results.map((r) =>
+        this.toCardShape(r),
+      );
+    });
   }
 
-  async searchByNutrients(params: Record<string, any>) {
-    try {
+  async searchByNutrients(params: Record<string, unknown>) {
+    return this.callWithKeyRotation(async (apiKey) => {
       const response = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/recipes/complexSearch`, {
-          params: {
-            apiKey: this.apiKey,
-            addRecipeInformation: true,
-            ...params,
-          },
+          params: { apiKey, addRecipeInformation: true, ...params },
         }),
       );
       return this.transformSearchResult(response.data);
-    } catch (error) {
-      this.handleSpoonacularError(error);
-    }
+    });
   }
 
   // Unified card shape — dipakai oleh semua list endpoint

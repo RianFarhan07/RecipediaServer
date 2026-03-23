@@ -6,6 +6,10 @@ export default () => ({
   },
   spoonacular: {
     apiKey: process.env.SPOONACULAR_API_KEY ?? '',
+    apiKeys: (process.env.SPOONACULAR_API_KEYS ?? process.env.SPOONACULAR_API_KEY ?? '')
+      .split(',')
+      .map((k) => k.trim())
+      .filter(Boolean),
     baseUrl: 'https://api.spoonacular.com',
   },
   gemini: {
