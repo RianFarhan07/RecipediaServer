@@ -2,6 +2,45 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { GeminiService } from './gemini.service';
 import { SpoonacularService } from '../recipes/spoonacular.service';
 
+const ACTIVITY_MULTIPLIERS: Record<string, number> = {
+  low: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  high: 1.725,
+  very_high: 1.9,
+};
+
+const MACRO_SPLIT: Record<
+  string,
+  { protein: number; carbs: number; fat: number }
+> = {
+  lose_weight: { protein: 0.4, carbs: 0.3, fat: 0.3 },
+  maintain: { protein: 0.25, carbs: 0.5, fat: 0.25 },
+  gain_muscle: { protein: 0.3, carbs: 0.45, fat: 0.25 },
+};
+
+function calcGoalCalories(
+  tdee: number,
+  weeklyGoal: number | null | undefined,
+  fitnessGoal: string | null | undefined,
+): number {
+  const goal = fitnessGoal ?? 'maintain';
+  if (goal === 'maintain' || !weeklyGoal) return tdee;
+
+  // 1 kg = 7700 kcal → delta per hari
+  const dailyDelta = Math.round((weeklyGoal * 7700) / 7);
+
+  if (goal === 'lose_weight') {
+    const deficit = Math.min(dailyDelta, 750);
+    return Math.max(tdee - deficit, 1200);
+  }
+  if (goal === 'gain_muscle') {
+    const surplus = Math.min(dailyDelta, 500);
+    return tdee + surplus;
+  }
+  return tdee;
+}
+
 @Injectable()
 export class AiService {
   constructor(
@@ -12,9 +51,21 @@ export class AiService {
   // ============================================
   // 1. Generate by Nutrients (BMI + Recipe)
   // ============================================
+
+  // Ganti method generateByNutrients:
   async generateByNutrients(user: any) {
-    const { height, gender, weight, age, activityLevel, diet, allergies } =
-      user;
+    const {
+      height,
+      gender,
+      weight,
+      age,
+      activityLevel,
+      diet,
+      allergies,
+      fitnessGoal,
+      targetWeight,
+      weeklyGoal,
+    } = user;
 
     if (!height || !gender || !weight || !age || !activityLevel) {
       throw new BadRequestException(
@@ -22,47 +73,86 @@ export class AiService {
       );
     }
 
-    const allergiesStr = allergies?.join(',') ?? '';
+    // 1. Hitung TDEE
+    const bmr =
+      gender === 'male'
+        ? 10 * weight + 6.25 * height - 5 * age + 5
+        : 10 * weight + 6.25 * height - 5 * age - 161;
+    const tdee = Math.round(
+      bmr * (ACTIVITY_MULTIPLIERS[activityLevel] ?? 1.55),
+    );
 
-    const prompt = `
-    Calculate nutrition values for a ${gender}, ${age} years old, ${weight} kg, ${height} cm tall, with activity level: ${activityLevel}.
-    Please provide the following values:
-    1. Daily calories
-    2. BMI value and category (Underweight, Normal, Overweight, or Obese)
-    3. Daily carbohydrate grams (50% of calories)
-    4. Daily protein grams (20% of calories)
-    5. Daily fat grams (30% of calories)
-    
-    Format the response as a valid JSON object with these exact keys: 
-    dailyCalories, bmi, bmiCategory, carbsGrams, proteinGrams, fatGrams.
-    Return ONLY the JSON object with no other text.
-    `;
+    // 2. Hitung target kalori berdasarkan goal
+    const targetCalories = calcGoalCalories(tdee, weeklyGoal, fitnessGoal);
+    const calorieAdjustment = targetCalories - tdee;
 
-    const response = await this.gemini.generateText(prompt);
-    const nutritionData = this.gemini.parseJSON<any>(response);
+    // 3. BMI
+    const bmiValue = parseFloat(
+      (weight / Math.pow(height / 100, 2)).toFixed(1),
+    );
+    const bmiCategory =
+      bmiValue < 18.5
+        ? 'Underweight'
+        : bmiValue < 25
+          ? 'Normal'
+          : bmiValue < 30
+            ? 'Overweight'
+            : 'Obese';
 
-    const { dailyCalories, carbsGrams, proteinGrams, fatGrams } = nutritionData;
+    // 4. Macro split berdasarkan goal
+    const split = MACRO_SPLIT[fitnessGoal ?? 'maintain'];
+    const proteinGrams = Math.round((targetCalories * split.protein) / 4);
+    const carbsGrams = Math.round((targetCalories * split.carbs) / 4);
+    const fatGrams = Math.round((targetCalories * split.fat) / 9);
 
-    // Per meal target (3 meals/day) — use wide calorie window only.
-    // Combining calories + carbs + protein + fat simultaneously causes 0 results on Spoonacular.
-    const minCalories = Math.round((dailyCalories * 0.7) / 3);
-    const maxCalories = Math.round((dailyCalories * 1.3) / 3);
+    // 5. Cross-check protein minimum (1.6g/kg)
+    const minProteinByWeight = Math.round(weight * 1.6);
+    const finalProteinGrams = Math.max(proteinGrams, minProteinByWeight);
 
-    // Keep macro data for response but don't use as Spoonacular filters
-    const minCarbs = Math.round((carbsGrams * 0.8) / 3);
-    const maxCarbs = Math.round((carbsGrams * 1.2) / 3);
-    const minProtein = Math.round((proteinGrams * 0.8) / 3);
-    const maxProtein = Math.round((proteinGrams * 1.2) / 3);
-    const minFat = Math.round((fatGrams * 0.8) / 3);
-    const maxFat = Math.round((fatGrams * 1.2) / 3);
+    // 6. Estimasi waktu capai target
+    let weeksToGoal: number | null = null;
+    let estimatedDate: string | null = null;
+    if (
+      targetWeight &&
+      fitnessGoal &&
+      fitnessGoal !== 'maintain' &&
+      weeklyGoal
+    ) {
+      const delta = Math.abs(weight - targetWeight);
+      weeksToGoal = Math.ceil(delta / weeklyGoal);
+      const target = new Date();
+      target.setDate(target.getDate() + weeksToGoal * 7);
+      estimatedDate = target.toISOString().slice(0, 10);
+    }
 
+    // 7. Per-meal kalori (÷3, window berdasarkan goal)
+    const windowPct = fitnessGoal === 'lose_weight' ? 0.15 : 0.2;
+    const perMealCalories = Math.round(targetCalories / 3);
+    const minCalories = Math.round(perMealCalories * (1 - windowPct));
+    const maxCalories = Math.round(perMealCalories * (1 + windowPct));
+
+    // 8. Spoonacular search params berdasarkan goal
     const searchParams: Record<string, any> = {
       minCalories,
       maxCalories,
       number: 9,
       addRecipeInformation: true,
       fillIngredients: true,
+      addRecipeNutrition: true,
     };
+
+    if (fitnessGoal === 'lose_weight') {
+      searchParams.sort = 'healthiness';
+      searchParams.minProtein = Math.round((finalProteinGrams * 0.8) / 3);
+      searchParams.maxCarbs = Math.round((carbsGrams * 1.1) / 3);
+    } else if (fitnessGoal === 'gain_muscle') {
+      searchParams.sort = 'time';
+      searchParams.minProtein = Math.round((finalProteinGrams * 0.9) / 3);
+    } else {
+      searchParams.sort = 'popularity';
+    }
+
+    const allergiesStr = allergies?.join(',') ?? '';
     if (diet) searchParams.diet = diet;
     if (allergiesStr) searchParams.intolerances = allergiesStr;
 
@@ -73,24 +163,46 @@ export class AiService {
 
     return {
       nutritionInfo: {
-        bmi: parseFloat(nutritionData.bmi ?? 0),
-        bmiCategory: nutritionData.bmiCategory ?? 'Unknown',
-        dailyCalories,
+        bmi: bmiValue,
+        bmiCategory,
+        tdee,
+        targetCalories,
+        calorieAdjustment,
+        fitnessGoal: fitnessGoal ?? 'maintain',
+        currentWeight: weight,
+        targetWeight: targetWeight ?? null,
+        weeklyGoal: weeklyGoal ?? null,
+        weeksToGoal,
+        estimatedGoalDate: estimatedDate,
+        macroSplit: {
+          protein: Math.round(split.protein * 100),
+          carbs: Math.round(split.carbs * 100),
+          fat: Math.round(split.fat * 100),
+        },
         macronutrients: {
-          carbs: {
-            percentage: 50,
-            grams: carbsGrams,
-            perMeal: { min: minCarbs, max: maxCarbs },
-          },
           protein: {
-            percentage: 20,
-            grams: proteinGrams,
-            perMeal: { min: minProtein, max: maxProtein },
+            percentage: Math.round(split.protein * 100),
+            grams: finalProteinGrams,
+            perMeal: {
+              min: Math.round((finalProteinGrams * 0.8) / 3),
+              max: Math.round((finalProteinGrams * 1.2) / 3),
+            },
+          },
+          carbs: {
+            percentage: Math.round(split.carbs * 100),
+            grams: carbsGrams,
+            perMeal: {
+              min: Math.round((carbsGrams * 0.8) / 3),
+              max: Math.round((carbsGrams * 1.2) / 3),
+            },
           },
           fat: {
-            percentage: 30,
+            percentage: Math.round(split.fat * 100),
             grams: fatGrams,
-            perMeal: { min: minFat, max: maxFat },
+            perMeal: {
+              min: Math.round((fatGrams * 0.8) / 3),
+              max: Math.round((fatGrams * 1.2) / 3),
+            },
           },
         },
         caloriesPerMeal: { min: minCalories, max: maxCalories },
@@ -187,7 +299,9 @@ export class AiService {
   // ============================================
   // 4. Ingredient Emoji
   // ============================================
-  async getIngredientEmoji(ingredient: string): Promise<{ name: string; emoji: string }> {
+  async getIngredientEmoji(
+    ingredient: string,
+  ): Promise<{ name: string; emoji: string }> {
     const prompt = `
     Give me the single most appropriate food emoji for the ingredient: "${ingredient}".
     Return ONLY a JSON object with these exact keys:
@@ -227,13 +341,27 @@ export class AiService {
     Return ONLY the JSON object with no other text.
     `;
 
-    const response = await this.gemini.generateWithImage(prompt, imageBase64, mimeType);
+    const response = await this.gemini.generateWithImage(
+      prompt,
+      imageBase64,
+      mimeType,
+    );
 
-    let result: { dishName: string | null; englishQuery: string | null; confidence: string; description: string | null };
+    let result: {
+      dishName: string | null;
+      englishQuery: string | null;
+      confidence: string;
+      description: string | null;
+    };
     try {
       result = this.gemini.parseJSON<typeof result>(response);
     } catch {
-      result = { dishName: null, englishQuery: null, confidence: 'low', description: null };
+      result = {
+        dishName: null,
+        englishQuery: null,
+        confidence: 'low',
+        description: null,
+      };
     }
 
     if (!result.dishName) {
@@ -243,7 +371,8 @@ export class AiService {
         confidence: 'low',
         description: null,
         recipes: [],
-        message: 'Could not identify a dish in this image. Try with a clearer photo.',
+        message:
+          'Could not identify a dish in this image. Try with a clearer photo.',
       };
     }
 
@@ -259,7 +388,10 @@ export class AiService {
       const words = result.englishQuery.split(' ');
       if (words.length > 2) {
         const stripped = words.slice(1).join(' ');
-        searchResult = await this.spoonacular.searchRecipes({ query: stripped, number: 12 });
+        searchResult = await this.spoonacular.searchRecipes({
+          query: stripped,
+          number: 12,
+        });
       }
     }
 
@@ -268,7 +400,10 @@ export class AiService {
       const words = result.englishQuery.split(' ');
       if (words.length > 2) {
         const core = words.slice(-2).join(' ');
-        searchResult = await this.spoonacular.searchRecipes({ query: core, number: 12 });
+        searchResult = await this.spoonacular.searchRecipes({
+          query: core,
+          number: 12,
+        });
       }
     }
 
@@ -335,6 +470,85 @@ export class AiService {
       ingredients,
       recipes,
       message: `Found ${ingredients.length} ingredients and ${recipes.length} recipe suggestions`,
+    };
+  }
+
+  async generateByNutrientsMealType(user: any, mealType: string) {
+    const {
+      height,
+      gender,
+      weight,
+      age,
+      activityLevel,
+      diet,
+      allergies,
+      fitnessGoal,
+      weeklyGoal,
+    } = user;
+
+    if (!height || !gender || !weight || !age || !activityLevel) {
+      throw new BadRequestException('Please complete your profile first');
+    }
+
+    // Hitung TDEE + target calories (sama seperti generateByNutrients)
+    const bmr =
+      gender === 'male'
+        ? 10 * weight + 6.25 * height - 5 * age + 5
+        : 10 * weight + 6.25 * height - 5 * age - 161;
+    const tdee = Math.round(
+      bmr * (ACTIVITY_MULTIPLIERS[activityLevel] ?? 1.55),
+    );
+    const targetCalories = calcGoalCalories(tdee, weeklyGoal, fitnessGoal);
+
+    // Per-meal split
+    const MEAL_SPLIT: Record<string, number> = {
+      breakfast: 0.25,
+      lunch: 0.35,
+      dinner: 0.4,
+    };
+    const split = MEAL_SPLIT[mealType] ?? 0.33;
+    const perMealCalories = Math.round(targetCalories * split);
+
+    const windowPct = fitnessGoal === 'lose_weight' ? 0.15 : 0.2;
+    const minCalories = Math.round(perMealCalories * (1 - windowPct));
+    const maxCalories = Math.round(perMealCalories * (1 + windowPct));
+
+    // Meal type mapping untuk Spoonacular
+    const SPOONACULAR_TYPE: Record<string, string> = {
+      breakfast: 'breakfast',
+      lunch: 'main course,salad,soup',
+      dinner: 'main course',
+    };
+
+    const searchParams: Record<string, any> = {
+      minCalories,
+      maxCalories,
+      number: 7, // 7 hari
+      type: SPOONACULAR_TYPE[mealType] ?? 'main course',
+      addRecipeInformation: true,
+      fillIngredients: true,
+      addRecipeNutrition: true,
+    };
+
+    if (fitnessGoal === 'lose_weight') {
+      searchParams.sort = 'healthiness';
+    } else if (fitnessGoal === 'gain_muscle') {
+      searchParams.sort = 'time';
+    } else {
+      searchParams.sort = 'popularity';
+    }
+
+    const allergiesStr = allergies?.join(',') ?? '';
+    if (diet) searchParams.diet = diet;
+    if (allergiesStr) searchParams.intolerances = allergiesStr;
+
+    const result = (await this.spoonacular.searchByNutrients(searchParams)) as
+      | { results: unknown[] }
+      | undefined;
+
+    return {
+      mealType,
+      recipes: result?.results ?? [],
     };
   }
 }

@@ -113,4 +113,21 @@ export class AiController {
   analyzeImage(@UploadedFile() file: Express.Multer.File) {
     return this.aiService.analyzeImage(file);
   }
+
+  @Get('generate-by-nutrients-meal-type')
+  @ApiOperation({
+    summary: 'Generate recipes for specific meal type based on user profile',
+  })
+  @ApiQuery({
+    name: 'mealType',
+    required: true,
+    enum: ['breakfast', 'lunch', 'dinner'],
+  })
+  generateByNutrientsMealType(
+    @CurrentUser() user: any,
+    @Query('mealType') mealType: string,
+  ) {
+    if (!user) throw new NotFoundException('User not found, please sync first');
+    return this.aiService.generateByNutrientsMealType(user, mealType);
+  }
 }

@@ -13,9 +13,13 @@ export class GeminiService {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
+      // model: 'gemini-3.1-flash',
+      // model: 'gemini-3-flash',
     });
     this.visionModel = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
+      // model: 'gemini-3.1-flash',
+      // model: 'gemini-3-flash',
     });
   }
 

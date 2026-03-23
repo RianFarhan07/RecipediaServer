@@ -20,6 +20,9 @@ model User {
     activityLevel   ActivityLevel?
     diet            DietType?
     allergies       String[]
+    fitnessGoal     FitnessGoal?
+    targetWeight    Float?
+    weeklyGoal      Float?
     favorites       Favorite[]
     fridge          UserFridge?
     mealPlanEntries MealPlanEntry[]
@@ -230,4 +233,10 @@ enum DietType {
     primal
     low_fodmap
     whole30
+}
+
+enum FitnessGoal {
+    lose_weight
+    maintain
+    gain_muscle
 }

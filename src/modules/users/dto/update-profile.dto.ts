@@ -5,6 +5,7 @@ import {
   IsArray,
   IsString,
   Min,
+  Max,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -33,6 +34,12 @@ export enum DietType {
   primal = 'primal',
   low_fodmap = 'low_fodmap',
   whole30 = 'whole30',
+}
+
+export enum FitnessGoal {
+  lose_weight = 'lose_weight',
+  maintain = 'maintain',
+  gain_muscle = 'gain_muscle',
 }
 
 export const ALLOWED_ALLERGIES = [
@@ -94,4 +101,25 @@ export class UpdateProfileDto {
   @IsArray()
   @IsString({ each: true })
   allergies?: string[];
+
+  @ApiProperty({ enum: FitnessGoal, required: false })
+  @IsOptional()
+  @IsEnum(FitnessGoal)
+  fitnessGoal?: FitnessGoal;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(20)
+  targetWeight?: number;
+
+  @ApiProperty({
+    required: false,
+    description: '0.25 / 0.5 / 0.75 / 1.0 kg per week',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1.5)
+  weeklyGoal?: number;
 }
